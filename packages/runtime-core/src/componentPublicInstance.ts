@@ -26,7 +26,8 @@ import {
   ComponentOptionsMixin,
   OptionTypesType,
   OptionTypesKeys,
-  resolveMergedOptions
+  resolveMergedOptions,
+  isInBeforeCreate
 } from './componentOptions'
 import { normalizePropsOptions } from './componentProps'
 import { EmitsOptions, EmitFn } from './componentEmits'
@@ -100,6 +101,15 @@ type UnwrapMixinsType<
 
 type EnsureNonVoid<T> = T extends void ? {} : T
 
+export type ComponentPublicInstanceConstructor<
+  T extends ComponentPublicInstance = ComponentPublicInstance<any>
+> = {
+  __isFragment?: never
+  __isTeleport?: never
+  __isSuspense?: never
+  new (...args: any[]): T
+}
+
 export type CreateComponentPublicInstance<
   P = {},
   B = {},
@@ -160,12 +170,6 @@ export type ComponentPublicInstance<
   ExtractComputedReturns<C> &
   M &
   ComponentCustomProperties
-
-export type ComponentPublicInstanceConstructor<
-  T extends ComponentPublicInstance
-> = {
-  new (): T
-}
 
 type PublicPropertiesMap = Record<string, (i: ComponentInternalInstance) => any>
 
@@ -254,7 +258,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
         accessCache![key] = AccessTypes.CONTEXT
         return ctx[key]
-      } else {
+      } else if (!__FEATURE_OPTIONS_API__ || !isInBeforeCreate) {
         accessCache![key] = AccessTypes.OTHER
       }
     }

@@ -3,8 +3,8 @@ import {
   Data,
   SetupContext,
   ComponentInternalOptions,
-  PublicAPIComponent,
   Component,
+  ConcreteComponent,
   InternalRenderFunction
 } from './component'
 import {
@@ -52,7 +52,7 @@ import { Directive } from './directives'
 import {
   CreateComponentPublicInstance,
   ComponentPublicInstance
-} from './componentProxy'
+} from './componentPublicInstance'
 import { warn } from './warning'
 import { VNodeChild } from './vnode'
 
@@ -103,10 +103,10 @@ export interface ComponentOptionsBase<
   // Luckily `render()` doesn't need any arguments nor does it care about return
   // type.
   render?: Function
-  components?: Record<string, PublicAPIComponent>
+  components?: Record<string, Component>
   directives?: Record<string, Directive>
   inheritAttrs?: boolean
-  emits?: E | EE[]
+  emits?: (E | EE[]) & ThisType<void>
 
   // Internal ------------------------------------------------------------------
 
@@ -132,7 +132,7 @@ export interface ComponentOptionsBase<
    * marker for AsyncComponentWrapper
    * @internal
    */
-  __asyncLoader?: () => Promise<Component>
+  __asyncLoader?: () => Promise<ConcreteComponent>
   /**
    * cache for merged $options
    * @internal
@@ -217,7 +217,7 @@ export type ComponentOptionsWithObjectProps<
   EE extends string = string,
   Props = Readonly<ExtractPropTypes<PropsOptions>>
 > = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
-  props: PropsOptions
+  props: PropsOptions & ThisType<void>
 } & ThisType<
     CreateComponentPublicInstance<
       Props,
@@ -266,7 +266,7 @@ export type ExtractComputedReturns<T extends any> = {
 type WatchOptionItem =
   | string
   | WatchCallback
-  | { handler: WatchCallback } & WatchOptions
+  | { handler: WatchCallback | string } & WatchOptions
 
 type ComponentWatchOptionItem = WatchOptionItem | WatchOptionItem[]
 
@@ -364,6 +364,8 @@ function createDuplicateChecker() {
 
 type DataFn = (vm: ComponentPublicInstance) => any
 
+export let isInBeforeCreate = false
+
 export function applyOptions(
   instance: ComponentInternalInstance,
   options: ComponentOptions,
@@ -382,6 +384,9 @@ export function applyOptions(
     watch: watchOptions,
     provide: provideOptions,
     inject: injectOptions,
+    // assets
+    components,
+    directives,
     // lifecycle
     beforeMount,
     mounted,
@@ -407,7 +412,9 @@ export function applyOptions(
 
   // applyOptions is called non-as-mixin once per instance
   if (!asMixin) {
+    isInBeforeCreate = true
     callSyncHook('beforeCreate', options, publicThis, globalMixins)
+    isInBeforeCreate = false
     // global mixins are applied first
     applyMixins(instance, globalMixins, deferredData, deferredWatch)
   }
@@ -481,23 +488,12 @@ export function applyOptions(
     }
   }
 
-  if (dataOptions) {
-    if (__DEV__ && !isFunction(dataOptions)) {
-      warn(
-        `The data option must be a function. ` +
-          `Plain object usage is no longer supported.`
-      )
-    }
-
-    if (asMixin) {
-      deferredData.push(dataOptions as DataFn)
-    } else {
-      resolveData(instance, dataOptions, publicThis)
-    }
-  }
   if (!asMixin) {
     if (deferredData.length) {
       deferredData.forEach(dataFn => resolveData(instance, dataFn, publicThis))
+    }
+    if (dataOptions) {
+      resolveData(instance, dataOptions, publicThis)
     }
     if (__DEV__) {
       const rawData = toRaw(instance.data)
@@ -514,6 +510,8 @@ export function applyOptions(
         }
       }
     }
+  } else if (dataOptions) {
+    deferredData.push(dataOptions as DataFn)
   }
 
   if (computedOptions) {
@@ -573,6 +571,32 @@ export function applyOptions(
     }
   }
 
+  // asset options.
+  // To reduce memory usage, only components with mixins or extends will have
+  // resolved asset registry attached to instance.
+  if (asMixin) {
+    if (components) {
+      extend(
+        instance.components ||
+          (instance.components = extend(
+            {},
+            (instance.type as ComponentOptions).components
+          ) as Record<string, ConcreteComponent>),
+        components
+      )
+    }
+    if (directives) {
+      extend(
+        instance.directives ||
+          (instance.directives = extend(
+            {},
+            (instance.type as ComponentOptions).directives
+          )),
+        directives
+      )
+    }
+  }
+
   // lifecycle options
   if (!asMixin) {
     callSyncHook('created', options, publicThis, globalMixins)
@@ -619,11 +643,11 @@ function callSyncHook(
   globalMixins: ComponentOptions[]
 ) {
   callHookFromMixins(name, globalMixins, ctx)
-  const baseHook = options.extends && options.extends[name]
-  if (baseHook) {
-    baseHook.call(ctx)
+
+  const { extends: base, mixins } = options
+  if (base) {
+    callHookFromExtends(name, base, ctx)
   }
-  const mixins = options.mixins
   if (mixins) {
     callHookFromMixins(name, mixins, ctx)
   }
@@ -633,12 +657,30 @@ function callSyncHook(
   }
 }
 
+function callHookFromExtends(
+  name: 'beforeCreate' | 'created',
+  base: ComponentOptions,
+  ctx: ComponentPublicInstance
+) {
+  if (base.extends) {
+    callHookFromExtends(name, base.extends, ctx)
+  }
+  const baseHook = base[name]
+  if (baseHook) {
+    baseHook.call(ctx)
+  }
+}
+
 function callHookFromMixins(
   name: 'beforeCreate' | 'created',
   mixins: ComponentOptions[],
   ctx: ComponentPublicInstance
 ) {
   for (let i = 0; i < mixins.length; i++) {
+    const chainedMixins = mixins[i].mixins
+    if (chainedMixins) {
+      callHookFromMixins(name, chainedMixins, ctx)
+    }
     const fn = mixins[i][name]
     if (fn) {
       fn.call(ctx)
@@ -662,6 +704,12 @@ function resolveData(
   dataFn: DataFn,
   publicThis: ComponentPublicInstance
 ) {
+  if (__DEV__ && !isFunction(dataFn)) {
+    warn(
+      `The data option must be a function. ` +
+        `Plain object usage is no longer supported.`
+    )
+  }
   const data = dataFn.call(publicThis, publicThis)
   if (__DEV__ && isPromise(data)) {
     warn(
@@ -700,7 +748,14 @@ function createWatcher(
     if (isArray(raw)) {
       raw.forEach(r => createWatcher(r, ctx, publicThis, key))
     } else {
-      watch(getter, raw.handler.bind(publicThis), raw)
+      const handler = isFunction(raw.handler)
+        ? raw.handler.bind(publicThis)
+        : (ctx[raw.handler] as WatchCallback)
+      if (isFunction(handler)) {
+        watch(getter, handler, raw)
+      } else if (__DEV__) {
+        warn(`Invalid watch handler specified by key "${raw.handler}"`, handler)
+      }
     }
   } else if (__DEV__) {
     warn(`Invalid watch option: "${key}"`)
