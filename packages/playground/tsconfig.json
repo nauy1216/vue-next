@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "./dist",
+    "sourceMap": true,
+    "target": "esnext",
+    "module":"ESNext",
+    "moduleResolution": "node",
+    "allowJs": false,
+    "strict": true,
+    "noUnusedLocals": true,
+    "experimentalDecorators": true,
+    "resolveJsonModule": true,
+    // "esModuleInterop": true,
+    "removeComments": false,
+    "jsx": "preserve",
+    "lib": ["esnext", "dom"],
+    // "rootDir": "../../",
+    "paths": {
+      // "@vue/*": ["../../packages/*/src"],
+      "vue": ["../../packages/vue"],
+      // "packages/compiler-core/src/transform": ["../../packages/compiler-core/src/transform"],
+      // "packages/runtime-core/src/errorHandling": ["../../packages/runtime-core/src/errorHandling"],
+      // "packages/runtime-core/src/component": ["../../packages/runtime-core/src/component"],
+    }
+  },
+  "include": [
+    "./src"
+    // "../../packages/global.d.ts",
+    // "../../packages/*/src",
+    // "../../packages/runtime-dom/types/jsx.d.ts",
+    // "../../packages/vue/dist/vue.d.ts",
+  ],
+  "exclude": [
+    "webpack.config.js",
+    "../../packages/template-explorer",
+    "../../packages/compiler-sfc",
+  ]
+}
