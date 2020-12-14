@@ -23,6 +23,7 @@ async function tsc() {
 
 // 模块映射
 const moudleMap = {
+  // vue模块使用已经打包好的，如果要动态修改vue源码查看效果， 请在vue-next下执行npm run dev
   vue: '/vue/dist/vue.esm-browser.js'
 }
 
@@ -68,6 +69,7 @@ app.use(function(req, res, next) {
 })
 
 app.get('/', (req, res) => {
+  // 每次请求前都会先将ts编译成js, 编译后的js文件在dist文件夹内
   tsc()
   res.setHeader('Content-Type', 'text/html')
   const content = fs.readFileSync(path.resolve(__dirname, '../template.html'))
