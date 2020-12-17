@@ -21,6 +21,7 @@ declare module '@vue/reactivity' {
   }
 }
 
+// rendererOptions 是底层操作dom的一些api
 const rendererOptions = extend({ patchProp, forcePatchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable

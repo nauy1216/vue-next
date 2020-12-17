@@ -406,6 +406,8 @@ export function applyOptions(
   const ctx = instance.ctx
   const globalMixins = instance.appContext.mixins
 
+  // 如果mixin存在render方法并且实例的render方法是一个空方法NOOP时，
+  // 就将mixin的render方法作为实例的render方法
   if (asMixin && render && instance.render === NOOP) {
     instance.render = render as InternalRenderFunction
   }

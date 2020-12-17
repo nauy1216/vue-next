@@ -1180,6 +1180,7 @@ function baseCreateRenderer(
     isSVG,
     optimized
   ) => {
+    // 根据vnode创建组件实例
     const instance: ComponentInternalInstance = (initialVNode.component = createComponentInstance(
       initialVNode,
       parentComponent,
@@ -1204,6 +1205,7 @@ function baseCreateRenderer(
     if (__DEV__) {
       startMeasure(instance, `init`)
     }
+    // 设置组件
     setupComponent(instance)
     if (__DEV__) {
       endMeasure(instance, `init`)

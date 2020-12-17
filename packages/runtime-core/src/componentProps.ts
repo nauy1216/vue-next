@@ -117,7 +117,9 @@ export function initProps(
 ) {
   const props: Data = {}
   const attrs: Data = {}
+  // 在attrs上定义__vInternal属性
   def(attrs, InternalObjectKey, 1)
+  // 获取所有的props，包括从extens和mixins上继承过来的
   setFullProps(instance, rawProps, props, attrs)
   // validation
   if (__DEV__) {
@@ -126,8 +128,11 @@ export function initProps(
 
   if (isStateful) {
     // stateful
+    // 非函数式组件，如果是服务端渲染时，将不会把对象处理成reactive对象
     instance.props = isSSR ? props : shallowReactive(props)
   } else {
+    // 函数式组件，当函数式组件未定义props时回将attrs挂在实例的props上
+    // 这个时候props和attrs是一样的
     if (!instance.type.props) {
       // functional w/ optional props, props === attrs
       instance.props = attrs
@@ -326,6 +331,7 @@ export function normalizePropsOptions(
   const needCastKeys: NormalizedPropsOptions[1] = []
 
   // apply mixin/extends props
+  // 递归处理extends、mixins
   let hasExtends = false
   if (__FEATURE_OPTIONS_API__ && !isFunction(comp)) {
     const extendProps = (raw: ComponentOptions) => {
@@ -343,6 +349,7 @@ export function normalizePropsOptions(
     }
   }
 
+  // 组件本身没有props并且没有使用extends和mixin
   if (!raw && !hasExtends) {
     return (comp.__props = EMPTY_ARR)
   }

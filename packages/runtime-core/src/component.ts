@@ -360,6 +360,7 @@ export function createComponentInstance(
   parent: ComponentInternalInstance | null,
   suspense: SuspenseBoundary | null
 ) {
+  // vnode的类型， 可能是内置标签此时是一个字符串，也可能是一个定义组件的option对象
   const type = vnode.type as ConcreteComponent
   // inherit parent app context - or - if root, adopt from root vnode
   const appContext =
@@ -369,9 +370,9 @@ export function createComponentInstance(
     uid: uid++,
     vnode,
     type,
-    parent,
-    appContext,
-    root: null!, // to be immediately set
+    parent, // 父组件实例
+    appContext, // 执行createApp时创建的app上下文
+    root: null!, // to be immediately set 根节点
     next: null,
     subTree: null!, // will be set synchronously right after creation
     update: null!, // will be set synchronously right after creation
@@ -383,7 +384,7 @@ export function createComponentInstance(
     accessCache: null!,
     renderCache: [],
 
-    // local resovled assets
+    // local resovled assets 组件本身注册的局部组件和指令
     components: null,
     directives: null,
 
@@ -470,6 +471,7 @@ export function setupComponent(
 
   const { props, children, shapeFlag } = instance.vnode
   const isStateful = shapeFlag & ShapeFlags.STATEFUL_COMPONENT
+  // 获取组件属性和slots
   initProps(instance, props, isStateful, isSSR)
   initSlots(instance, children)
 
@@ -507,6 +509,7 @@ function setupStatefulComponent(
   instance.accessCache = {}
   // 1. create public instance / render proxy
   // also mark it raw so it's never observed
+  // 通过代理的方式来暴露公开接口
   instance.proxy = new Proxy(instance.ctx, PublicInstanceProxyHandlers)
   if (__DEV__) {
     exposePropsOnRenderContext(instance)
@@ -517,8 +520,11 @@ function setupStatefulComponent(
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
+    // 当前正在渲染的组件
     currentInstance = instance
+    // 暂停收集依赖
     pauseTracking()
+    // 执行组件的setup方法
     const setupResult = callWithErrorHandling(
       setup,
       instance,
@@ -528,6 +534,7 @@ function setupStatefulComponent(
     resetTracking()
     currentInstance = null
 
+    // setup方法返回一个Promise对象
     if (isPromise(setupResult)) {
       if (isSSR) {
         // return the promise so server-renderer can wait on it
@@ -545,6 +552,7 @@ function setupStatefulComponent(
         )
       }
     } else {
+      // 处理setup方法的返回值
       handleSetupResult(instance, setupResult, isSSR)
     }
   } else {
@@ -557,6 +565,7 @@ export function handleSetupResult(
   setupResult: unknown,
   isSSR: boolean
 ) {
+  // 如果返回的是一个方法，则将这个方法作为组件的render方法
   if (isFunction(setupResult)) {
     // setup returned an inline render function
     instance.render = setupResult as InternalRenderFunction
@@ -572,6 +581,7 @@ export function handleSetupResult(
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       instance.devtoolsRawSetupState = setupResult
     }
+    // 在setupState上保存setup方法的执行结果
     instance.setupState = proxyRefs(setupResult)
     if (__DEV__) {
       exposeSetupStateOnRenderContext(instance)
@@ -583,6 +593,7 @@ export function handleSetupResult(
       }`
     )
   }
+  // 执行完setup后
   finishComponentSetup(instance, isSSR)
 }
 
@@ -613,8 +624,10 @@ function finishComponentSetup(
       instance.render = Component.render as InternalRenderFunction
     }
   } else if (!instance.render) {
+    // 如果实例上没有render方法
     // could be set from setup()
     if (compile && Component.template && !Component.render) {
+      // 通过template生成render方法
       if (__DEV__) {
         startMeasure(instance, `compile`)
       }
@@ -632,6 +645,7 @@ function finishComponentSetup(
     // for runtime-compiled render functions using `with` blocks, the render
     // proxy used needs a different `has` handler which is more performant and
     // also only allows a whitelist of globals to fallthrough.
+    // 运行时编译生成的render方法做特殊处理
     if (instance.render._rc) {
       instance.withProxy = new Proxy(
         instance.ctx,
@@ -641,6 +655,7 @@ function finishComponentSetup(
   }
 
   // support for 2.x options
+  // 兼容2.0的api
   if (__FEATURE_OPTIONS_API__) {
     currentInstance = instance
     applyOptions(instance, Component)
