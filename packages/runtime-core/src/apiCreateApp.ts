@@ -84,6 +84,7 @@ export type Plugin =
       install: PluginInstallFunction
     }
 
+// 创建app上下文对像
 export function createAppContext(): AppContext {
   return {
     app: null as any,
@@ -108,6 +109,7 @@ export type CreateAppFunction<HostElement> = (
   rootProps?: Data | null
 ) => App<HostElement>
 
+// 返回createApp方法
 export function createAppAPI<HostElement>(
   render: RootRenderFunction,
   hydrate?: RootHydrateFunction
