@@ -19,6 +19,7 @@
     "paths": {
       // "@vue/*": ["../../packages/*/src"],
       "vue": ["../../packages/vue"],
+      "reactivity": ["../../packages/reactivity"],
       // "packages/compiler-core/src/transform": ["../../packages/compiler-core/src/transform"],
       // "packages/runtime-core/src/errorHandling": ["../../packages/runtime-core/src/errorHandling"],
       // "packages/runtime-core/src/component": ["../../packages/runtime-core/src/component"],

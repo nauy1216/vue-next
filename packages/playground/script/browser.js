@@ -24,7 +24,8 @@ async function tsc() {
 // 模块映射
 const moudleMap = {
   // vue模块使用已经打包好的，如果要动态修改vue源码查看效果， 请在vue-next下执行npm run dev
-  vue: '/vue/dist/vue.esm-browser.js'
+  vue: '/vue/dist/vue.esm-browser.js',
+  reactivity: '/reactivity/dist/reactivity.esm-browser.js'
 }
 
 const visitor = {
@@ -60,7 +61,7 @@ app.use(function(req, res, next) {
       str = transformCode(str)
     }
     res.send(Buffer.alloc(str.length, str, 'utf-8'))
-  } else if (/^\/vue/.test(req.path)) {
+  } else if (/^\/(vue|reactivity)/.test(req.path)) {
     res.setHeader('Content-Type', 'application/javascript')
     let content = fs.readFileSync(resolve(req.path))
     res.send(content)
