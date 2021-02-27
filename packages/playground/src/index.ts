@@ -1,4 +1,5 @@
 // import './test/reactive'
 // import './test/effect'
 // import './test/ref'
-import './test/computed'
+// import './test/computed'
+import './test/createApp'
